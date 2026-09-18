@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useLogout } from "@/features/auth/hooks/useLogout"
 import { useSession } from "@/features/auth/hooks/useSession"
+import { useTheme } from "@/components/theme-provider"
 
 const navItems: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -49,14 +50,24 @@ const navItems: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ]
 
-const sidebarThemeVars = {
-  "--sidebar": "#071d1c",
-  "--sidebar-foreground": "#8fa8a1",
-  "--sidebar-accent": "#0f2e29",
-  "--sidebar-accent-foreground": "#4be08a",
-  "--sidebar-border": "#173832",
-  "--sidebar-ring": "#36e79a",
-} as CSSProperties
+const sidebarThemeVarsByMode: Record<"dark" | "light", CSSProperties> = {
+  dark: {
+    "--sidebar": "#071d1c",
+    "--sidebar-foreground": "#8fa8a1",
+    "--sidebar-accent": "#0f2e29",
+    "--sidebar-accent-foreground": "#4be08a",
+    "--sidebar-border": "#173832",
+    "--sidebar-ring": "#36e79a",
+  } as CSSProperties,
+  light: {
+    "--sidebar": "#eefbf3",
+    "--sidebar-foreground": "#3f5952",
+    "--sidebar-accent": "#d6f2e1",
+    "--sidebar-accent-foreground": "#0f7a45",
+    "--sidebar-border": "#c3e6d3",
+    "--sidebar-ring": "#1fb872",
+  } as CSSProperties,
+}
 
 function initialsOf(name: string) {
   return name
@@ -71,6 +82,7 @@ export function AppSidebar() {
   const navigate = useNavigate()
   const session = useSession()
   const logout = useLogout()
+  const { resolvedTheme } = useTheme()
   const user = session.data?.user
 
   function handleSignOut() {
@@ -82,10 +94,10 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar collapsible="icon" style={sidebarThemeVars}>
+    <Sidebar collapsible="icon" style={sidebarThemeVarsByMode[resolvedTheme]}>
       <SidebarHeader>
         <Link
-          className="flex items-center gap-2 px-2 py-1.5 text-base font-bold text-white no-underline"
+          className="flex items-center gap-2 px-2 py-1.5 text-base font-bold text-sidebar-accent-foreground no-underline"
           to="/dashboard"
         >
           <BrandMark />
@@ -115,7 +127,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <DropdownMenuTrigger>
           <Button
-            className="h-auto w-full justify-start gap-2 px-2 py-1.5 text-sidebar-foreground hover:bg-sidebar-accent hover:text-white data-open:bg-sidebar-accent data-open:text-white"
+            className="h-auto w-full justify-start gap-2 px-2 py-1.5 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
             variant="ghost"
           >
             <Avatar size="sm">
@@ -124,7 +136,7 @@ export function AppSidebar() {
               </AvatarFallback>
             </Avatar>
             <div className="flex min-w-0 flex-col items-start group-data-[collapsible=icon]:hidden">
-              <span className="truncate text-sm font-medium text-white">{user?.name ?? "…"}</span>
+              <span className="truncate text-sm font-medium text-sidebar-accent-foreground">{user?.name ?? "…"}</span>
               <span className="truncate text-xs text-sidebar-foreground/70">{user?.email}</span>
             </div>
             <ChevronsUpDown
