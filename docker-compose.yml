@@ -1,0 +1,13 @@
+services:
+  mongodb:
+    image: mongo:7.0.14
+    container_name: launchfleet-mongodb
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27018:27017"
+    volumes:
+      - launchfleet-mongo-data:/data/db
+
+volumes:
+  launchfleet-mongo-data:

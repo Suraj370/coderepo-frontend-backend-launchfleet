@@ -6,6 +6,7 @@ readonly_paths:
   - backend/src/main/java/com/launchfleet/backend/seed
   - backend/src/main/resources/application.yaml
   - backend/src/main/resources/application-dev.yaml
+  - docker-compose.yml
 default_open_files:
   - README.md
   - frontend/src/pages/feature-flags/FeatureFlagsPage.tsx

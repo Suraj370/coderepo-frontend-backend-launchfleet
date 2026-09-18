@@ -39,10 +39,10 @@ hackerrank.yml                Authoritative install/run commands
 
 - Bun 1.4 or newer
 - Java 21 or newer
-- MongoDB running as a single-node replica set at `localhost:27018`
+- Docker Desktop with Docker Compose
 - `mongosh` available on `PATH`
 
-Set `MONGODB_URI` to use another MongoDB instance. The backend runs on port `8000`; the Vite frontend runs on port `3000` and proxies `/api` to the backend.
+`setup.sh` starts the pinned `mongo:7.0.14` single-node replica set from `docker-compose.yml` when no MongoDB is already reachable. Set `MONGODB_URI` to use another MongoDB instance. The backend runs on port `8000`; the Vite frontend runs on port `3000` and proxies `/api` to the backend.
 
 ## Install and run
 
@@ -50,6 +50,12 @@ Set `MONGODB_URI` to use another MongoDB instance. The backend runs on port `800
 bun install
 bash setup.sh --seed
 bash run.sh
+```
+
+To start only the repository-managed database:
+
+```bash
+docker compose up -d mongodb
 ```
 
 The full run flow resets application collections to the deterministic demo baseline before starting both servers. Health is available at `http://localhost:8000/actuator/health` and includes MongoDB connectivity details.
