@@ -13,11 +13,24 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.launchfleet.backend.approvals.application.SubmitApprovalRequest;
+import com.launchfleet.backend.approvals.ports.ApprovalRequestStore;
 import com.launchfleet.backend.environments.Environment;
 import com.launchfleet.backend.environments.EnvironmentRepository;
 import com.launchfleet.backend.environments.application.ProvisionStandardEnvironments;
+import com.launchfleet.backend.experiments.application.CreateExperiment;
+import com.launchfleet.backend.experiments.ports.ExperimentAssignmentStore;
+import com.launchfleet.backend.experiments.ports.ExperimentStore;
+import com.launchfleet.backend.featureflags.application.CreateFeatureFlag;
+import com.launchfleet.backend.featureflags.application.CreateSegment;
+import com.launchfleet.backend.featureflags.application.FeatureFlagView;
+import com.launchfleet.backend.featureflags.domain.Condition;
+import com.launchfleet.backend.featureflags.domain.ConditionOperator;
+import com.launchfleet.backend.featureflags.domain.ConditionType;
+import com.launchfleet.backend.featureflags.domain.FlagType;
 import com.launchfleet.backend.featureflags.ports.FeatureFlagConfigStore;
 import com.launchfleet.backend.featureflags.ports.FeatureFlagStore;
+import com.launchfleet.backend.featureflags.ports.SegmentStore;
 import com.launchfleet.backend.projects.Project;
 import com.launchfleet.backend.projects.ProjectMembership;
 import com.launchfleet.backend.projects.ProjectMembershipRepository;
@@ -139,11 +152,20 @@ public class SeedRunner {
 		EnvironmentRepository environmentRepository = context.getBean(EnvironmentRepository.class);
 		FeatureFlagStore featureFlagStore = context.getBean(FeatureFlagStore.class);
 		FeatureFlagConfigStore featureFlagConfigStore = context.getBean(FeatureFlagConfigStore.class);
+		SegmentStore segmentStore = context.getBean(SegmentStore.class);
+		ExperimentStore experimentStore = context.getBean(ExperimentStore.class);
+		ExperimentAssignmentStore experimentAssignmentStore = context.getBean(ExperimentAssignmentStore.class);
+		ApprovalRequestStore approvalRequestStore = context.getBean(ApprovalRequestStore.class);
 		ProvisionStandardEnvironments provisionStandardEnvironments = context
 				.getBean(ProvisionStandardEnvironments.class);
+		CreateFeatureFlag createFeatureFlag = context.getBean(CreateFeatureFlag.class);
+		CreateSegment createSegment = context.getBean(CreateSegment.class);
+		CreateExperiment createExperiment = context.getBean(CreateExperiment.class);
+		SubmitApprovalRequest submitApprovalRequest = context.getBean(SubmitApprovalRequest.class);
 
 		clearDatabase(userRepository, projectMembershipRepository, sdkCredentialRepository, projectRepository,
-				environmentRepository, featureFlagStore, featureFlagConfigStore);
+				environmentRepository, featureFlagStore, featureFlagConfigStore, segmentStore, experimentStore,
+				experimentAssignmentStore, approvalRequestStore);
 
 		User user = seedUser(userRepository, passwordEncoder);
 		seedMembership(projectMembershipRepository, user);
@@ -153,16 +175,26 @@ public class SeedRunner {
 		provisionStandardEnvironments.execute(project.getId(), user.getId());
 		List<Environment> environments = environmentRepository.findByProjectId(project.getId());
 
-		report(userRepository, projectMembershipRepository, sdkCredentialRepository, user, environments);
+		seedFeatureFlagSegmentExperimentAndApproval(createFeatureFlag, createSegment, createExperiment,
+				submitApprovalRequest, user);
+
+		report(userRepository, projectMembershipRepository, sdkCredentialRepository, featureFlagStore, segmentStore,
+				experimentStore, approvalRequestStore, user, project, environments);
 	}
 
 	private static void clearDatabase(UserRepository userRepository,
 			ProjectMembershipRepository projectMembershipRepository, SdkCredentialRepository sdkCredentialRepository,
 			ProjectRepository projectRepository, EnvironmentRepository environmentRepository,
-			FeatureFlagStore featureFlagStore, FeatureFlagConfigStore featureFlagConfigStore) {
+			FeatureFlagStore featureFlagStore, FeatureFlagConfigStore featureFlagConfigStore,
+			SegmentStore segmentStore, ExperimentStore experimentStore,
+			ExperimentAssignmentStore experimentAssignmentStore, ApprovalRequestStore approvalRequestStore) {
 		System.out.println();
 		System.out.println("Clearing existing collections...");
 
+		approvalRequestStore.deleteAll();
+		experimentAssignmentStore.deleteAll();
+		experimentStore.deleteAll();
+		segmentStore.deleteAll();
 		featureFlagConfigStore.deleteAll();
 		featureFlagStore.deleteAll();
 		environmentRepository.deleteAll();
@@ -227,6 +259,46 @@ public class SeedRunner {
 		sdkCredentialService.issueClientSideId(credential);
 	}
 
+	/**
+	 * Seeds one representative example of each headline capability (flag with
+	 * per-environment configs, segment, experiment, and a pending approval request) so
+	 * a fresh checkout demonstrates the product instead of starting empty. Reuses the
+	 * same application-layer use cases the dashboard itself calls, rather than
+	 * constructing domain objects or documents directly, so seeded data is guaranteed
+	 * to satisfy the same invariants as anything created through the API.
+	 */
+	private static void seedFeatureFlagSegmentExperimentAndApproval(CreateFeatureFlag createFeatureFlag,
+			CreateSegment createSegment, CreateExperiment createExperiment,
+			SubmitApprovalRequest submitApprovalRequest, User user) {
+		System.out.println();
+		System.out.println("Seeding feature flag...");
+
+		FeatureFlagView flagView = createFeatureFlag.execute(SeedData.DEMO_PROJECT_KEY, "checkout-redesign",
+				"Checkout Redesign", "Rolls out the redesigned checkout flow to eligible users.", FlagType.BOOLEAN,
+				null, user.getId());
+
+		System.out.println();
+		System.out.println("Seeding segment...");
+
+		createSegment.execute(SeedData.DEMO_PROJECT_KEY, "beta-users", "Beta Users",
+				List.of(new Condition(ConditionType.ATTRIBUTE, "plan", ConditionOperator.EQUALS, List.of("beta"))),
+				user.getId());
+
+		System.out.println();
+		System.out.println("Seeding experiment...");
+
+		createExperiment.execute(SeedData.DEMO_PROJECT_KEY, SeedData.DEMO_ENVIRONMENT_KEY, flagView.flag().getKey(),
+				"checkout-redesign-impact", "Checkout Redesign Impact",
+				"Measures conversion impact of the redesigned checkout flow.", user.getId());
+
+		System.out.println();
+		System.out.println("Seeding approval request...");
+
+		String enabledVariantId = flagView.flag().getVariants().get(1).id();
+		submitApprovalRequest.execute(SeedData.DEMO_PROJECT_KEY, flagView.flag().getKey(),
+				SeedData.DEMO_ENVIRONMENT_KEY, true, enabledVariantId, List.of(), List.of(), user.getId());
+	}
+
 	private static Project seedProject(ProjectRepository projectRepository) {
 		System.out.println();
 		System.out.println("Seeding project...");
@@ -246,7 +318,9 @@ public class SeedRunner {
 	 * creation time in code if a test or tool needs to use one.
 	 */
 	private static void report(UserRepository userRepository, ProjectMembershipRepository projectMembershipRepository,
-			SdkCredentialRepository sdkCredentialRepository, User user, List<Environment> environments) {
+			SdkCredentialRepository sdkCredentialRepository, FeatureFlagStore featureFlagStore,
+			SegmentStore segmentStore, ExperimentStore experimentStore, ApprovalRequestStore approvalRequestStore,
+			User user, Project project, List<Environment> environments) {
 		System.out.println();
 		System.out.println(SEPARATOR);
 		System.out.println("Seeding completed successfully!");
@@ -256,6 +330,11 @@ public class SeedRunner {
 		System.out.println("  Users:                " + userRepository.count());
 		System.out.println("  Project memberships:  " + projectMembershipRepository.count());
 		System.out.println("  SDK credentials:      " + sdkCredentialRepository.count());
+		System.out.println("  Feature flags:        " + featureFlagStore.findByProjectId(project.getId()).size());
+		System.out.println("  Segments:             " + segmentStore.findByProjectId(project.getId()).size());
+		System.out.println("  Experiments:          " + experimentStore.findByProjectId(project.getId()).size());
+		System.out.println(
+				"  Approval requests:    " + approvalRequestStore.findByProjectId(project.getId()).size());
 		System.out.println();
 		System.out.println("Dashboard user created:");
 		System.out.println("  Email:   " + user.getEmail());

@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react"
-import { Trash2, UserPlus } from "lucide-react"
+import { Pencil, Trash2, UserPlus } from "lucide-react"
 import { Link, useParams } from "@tanstack/react-router"
 
 import { getApiErrorMessage } from "@/api/errors"
@@ -13,6 +13,7 @@ import { useAddProjectMember } from "@/features/projects/hooks/useAddProjectMemb
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
 import { useProjects } from "@/features/projects/hooks/useProjects"
 import { useRemoveProjectMember } from "@/features/projects/hooks/useRemoveProjectMember"
+import { useRenameProject } from "@/features/projects/hooks/useRenameProject"
 import { useUpdateProjectMemberRole } from "@/features/projects/hooks/useUpdateProjectMemberRole"
 import type { ProjectRole } from "@/features/projects/types"
 
@@ -35,7 +36,11 @@ export function ProjectMembersPage() {
       </Link>
 
       <div>
-        <h1 className="text-2xl font-semibold">{project?.name ?? projectKey} team</h1>
+        {isAdmin ? (
+          <ProjectNameHeading name={project?.name ?? projectKey} projectKey={projectKey} />
+        ) : (
+          <h1 className="text-2xl font-semibold">{project?.name ?? projectKey} team</h1>
+        )}
         <p className="text-sm text-muted-foreground">Manage who has access to this project.</p>
       </div>
 
@@ -108,6 +113,82 @@ export function ProjectMembersPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function ProjectNameHeading({ name, projectKey }: { name: string; projectKey: string }) {
+  const renameProject = useRenameProject(projectKey)
+  const [isEditing, setIsEditing] = useState(false)
+  const [value, setValue] = useState(name)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!renameProject.error) {
+      setErrorMessage(null)
+      return
+    }
+
+    let cancelled = false
+
+    getApiErrorMessage(renameProject.error).then((message) => {
+      if (!cancelled) {
+        setErrorMessage(message)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [renameProject.error])
+
+  if (!isEditing) {
+    return (
+      <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-semibold">{name} team</h1>
+        <Button
+          aria-label="Rename project"
+          onPress={() => {
+            setValue(name)
+            setIsEditing(true)
+          }}
+          size="icon-sm"
+          variant="ghost"
+        >
+          <Pencil />
+        </Button>
+      </div>
+    )
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    renameProject.mutate(value, {
+      onSuccess: () => setIsEditing(false),
+    })
+  }
+
+  return (
+    <form className="flex items-start gap-2" onSubmit={handleSubmit}>
+      <Field data-invalid={errorMessage ? true : undefined}>
+        <FieldLabel className="sr-only" htmlFor="project-name">
+          Project name
+        </FieldLabel>
+        <Input
+          autoFocus
+          id="project-name"
+          onChange={(event) => setValue(event.target.value)}
+          required
+          value={value}
+        />
+        {errorMessage && <FieldError>{errorMessage}</FieldError>}
+      </Field>
+      <Button isDisabled={renameProject.isPending} size="sm" type="submit">
+        {renameProject.isPending ? "Saving..." : "Save"}
+      </Button>
+      <Button onPress={() => setIsEditing(false)} size="sm" type="button" variant="ghost">
+        Cancel
+      </Button>
+    </form>
   )
 }
 

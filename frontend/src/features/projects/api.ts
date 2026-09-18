@@ -5,6 +5,7 @@ import type {
   ProjectMember,
   ProjectMembership,
   ProjectRole,
+  RenameProjectRequest,
 } from "./types";
 
 interface ApiResponse<T> {
@@ -22,6 +23,19 @@ export async function createProject(
 ): Promise<ProjectMembership> {
   const response = await api
     .post("projects", {
+      json: request,
+    })
+    .json<ApiResponse<ProjectMembership>>();
+
+  return response.data;
+}
+
+export async function renameProject(
+  projectKey: string,
+  request: RenameProjectRequest,
+): Promise<ProjectMembership> {
+  const response = await api
+    .patch(`projects/${projectKey}`, {
       json: request,
     })
     .json<ApiResponse<ProjectMembership>>();

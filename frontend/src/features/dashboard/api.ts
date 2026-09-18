@@ -86,3 +86,22 @@ export async function listActivity(projectKey: string): Promise<ActivityEntry[]>
 
   return response.data;
 }
+
+export interface FlagEvaluationDaySummary {
+  date: string;
+  count: number;
+}
+
+export interface FlagEvaluationSummary {
+  totalLast7Days: number;
+  percentChangeVsPriorPeriod: number;
+  byDay: FlagEvaluationDaySummary[];
+}
+
+export async function getFlagEvaluationSummary(projectKey: string): Promise<FlagEvaluationSummary> {
+  const response = await api
+    .get(`projects/${projectKey}/flags/evaluations/summary`)
+    .json<ApiResponse<FlagEvaluationSummary>>();
+
+  return response.data;
+}

@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts"
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from "recharts"
 
 import { useEnvironmentContext } from "@/app/environment-context"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { type ActivityAction, type ActivityEntry } from "@/features/dashboard/api"
 import { useActivity } from "@/features/dashboard/hooks/useActivity"
 import { useDashboardSummary } from "@/features/dashboard/hooks/useDashboardSummary"
+import { useFlagEvaluationSummary } from "@/features/dashboard/hooks/useFlagEvaluationSummary"
 
 const quickActions: { label: string; to: string; icon: LucideIcon }[] = [
   { label: "Create Feature Flag", to: "/feature-flags", icon: ToggleRight },
@@ -74,6 +75,7 @@ export function DashboardPage() {
   const { projectKey, isProjectsPending } = useEnvironmentContext()
   const summary = useDashboardSummary(projectKey)
   const activity = useActivity(projectKey)
+  const evaluationSummary = useFlagEvaluationSummary(projectKey)
 
   if (!isProjectsPending && !projectKey) {
     return (
@@ -147,10 +149,44 @@ export function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Flag Evaluations</CardTitle>
-            <CardDescription>No evaluation analytics endpoint yet.</CardDescription>
+            <CardDescription>
+              {evaluationSummary.isPending || !evaluationSummary.data
+                ? "Last 7 days, from the SDK evaluation endpoint."
+                : `${evaluationSummary.data.totalLast7Days} in the last 7 days (${
+                    evaluationSummary.data.percentChangeVsPriorPeriod >= 0 ? "+" : ""
+                  }${Math.round(evaluationSummary.data.percentChangeVsPriorPeriod)}% vs. prior 7 days)`}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-            No data source available.
+          <CardContent className="h-48">
+            {evaluationSummary.isPending ? (
+              <Skeleton className="h-full w-full" />
+            ) : evaluationSummary.isError ? (
+              <p className="flex h-full items-center justify-center text-sm text-destructive">
+                Something went wrong loading evaluation data.
+              </p>
+            ) : evaluationSummary.data.totalLast7Days === 0 ? (
+              <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                No SDK evaluations recorded yet.
+              </p>
+            ) : (
+              <ResponsiveContainer height="100%" width="100%">
+                <BarChart data={evaluationSummary.data.byDay}>
+                  <XAxis
+                    axisLine={false}
+                    dataKey="date"
+                    fontSize={12}
+                    tickFormatter={(date: string) =>
+                      new Date(date).toLocaleDateString(undefined, { weekday: "short" })
+                    }
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    labelFormatter={(date) => new Date(String(date)).toLocaleDateString()}
+                  />
+                  <Bar dataKey="count" fill="#0f7a52" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
