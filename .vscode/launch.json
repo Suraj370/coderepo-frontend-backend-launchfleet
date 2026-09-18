@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "LaunchFleet backend",
+      "request": "launch",
+      "mainClass": "com.launchfleet.backend.BackendApplication",
+      "projectName": "backend",
+      "cwd": "${workspaceFolder}/backend",
+      "vmArgs": "-Dspring.profiles.active=dev",
+      "env": {
+        "MONGODB_URI": "mongodb://localhost:27018/launchfleet?replicaSet=rs0&directConnection=true",
+        "SERVER_PORT": "8000",
+        "COOKIE_SECURE": "false"
+      }
+    }
+  ]
+}

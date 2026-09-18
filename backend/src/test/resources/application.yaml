@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: backend
+  mongodb:
+    # See src/main/resources/application.yaml for why both replicaSet=rs0 and
+    # directConnection=true are required (single-node replica set behind a remapped
+    # port). Multi-document transaction tests (ApprovalRequestLifecycleConcurrencyTest,
+    # the retirement-vs-scheduled-application tests) need this to actually exercise
+    # real transactions, not just compile against transactional APIs.
+    uri: mongodb://localhost:27018/launchfleet_test?replicaSet=rs0&directConnection=true

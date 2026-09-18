@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: backend
+  mongodb:
+    # directConnection=true: this is a single-node replica set (rs0) accessed through a
+    # remapped host port (27018 -> the container's 27017), not the port the replica set
+    # member advertises itself as internally - so the driver's normal topology discovery
+    # (which trusts each member's own advertised host:port) would try to reach it at the
+    # wrong address. directConnection skips discovery and always talks to this one seed
+    # host directly, which is correct for a single member anyway. replicaSet=rs0 is what
+    # actually enables multi-document transactions (see ApprovalTransactionConfig) - a
+    # standalone mongod cannot start a transaction at all.
+    uri: ${MONGODB_URI:mongodb://localhost:27018/launchfleet?replicaSet=rs0&directConnection=true}
+
+server:
+  port: ${SERVER_PORT:8000}
+
+app:
+  security:
+    cookie:
+      # Session cookie's Secure flag. Defaults to true (HTTPS-only) - only override to
+      # false for a from-scratch local HTTP-only setup that can't use the localhost
+      # Secure-cookie exemption most browsers already grant.
+      secure: ${COOKIE_SECURE:false}
+
+management:
+  endpoint:
+    health:
+      show-details: always
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+# Swagger UI/OpenAPI JSON are off by default (this base profile) and turned on only by
+# application-dev.yaml (SPRING_PROFILES_ACTIVE=dev) - see SecurityConfig's defaultDenyFilterChain
+# for why the routes are always permitted at the security layer regardless: when disabled here,
+# springdoc registers no controller for them at all, so they simply 404 rather than ever being a
+# security-relevant surface in a non-dev environment.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

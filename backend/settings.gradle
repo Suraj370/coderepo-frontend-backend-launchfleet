@@ -1,0 +1,11 @@
+plugins {
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'backend'
+
+// The SDK is a genuinely separate, publishable client library (Phase 5): no Spring,
+// no Spring Security, no MongoDB, no dependency on the backend application at all. It
+// lives in its own subproject purely so it builds/tests/packages independently of the
+// backend Boot app, while still living in this one repository/one Gradle build.
+include 'sdk'

@@ -1,0 +1,333 @@
+{
+  "description": "Golden vectors proving the backend's evaluation semantics (Phases 1-4: disabled -> targeting rules (priority, AND-combination, segments) -> rollout -> default, plus RolloutAssigner's SHA-256 bucketing) and the SDK's FlagEvaluator (Phase 5) select the identical variant for the identical (configuration, evaluation context) pair. Consumed by both backend/src/test/java/.../EvaluationGoldenVectorTest.java (a test-only reference evaluator built from real backend domain objects: Condition/TargetingRule/Segment/Rollout/RolloutAssigner/FeatureFlagConfig) and sdk/src/test/java/.../BackendGoldenVectorCompatibilityTest.java (the production FlagEvaluator). 'flag not found' is intentionally excluded: it is a snapshot-lookup miss with no backend-side analogue to compare against, and is already covered by FlagEvaluatorTest.unknownFlagReturnsFlagNotFound.",
+  "scenarios": [
+    {
+      "name": "disabled_flag_bypasses_targeting_and_rollout",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": false,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "USER_KEY", "attribute": null, "operator": "EQUALS", "values": ["alice"] } ] }
+        ],
+        "rollout": { "allocations": [ { "variantId": "v-on", "percentage": 10000 } ] }
+      },
+      "context": { "userKey": "alice", "attributes": {} },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "default_evaluation_no_rules_no_rollout",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [],
+        "rollout": null
+      },
+      "context": { "userKey": "bob", "attributes": {} },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "user_key_targeting_match",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "USER_KEY", "attribute": null, "operator": "EQUALS", "values": ["alice"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": {} },
+      "expectedVariantKey": "on"
+    },
+    {
+      "name": "user_key_targeting_no_match_falls_to_default",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "USER_KEY", "attribute": null, "operator": "EQUALS", "values": ["alice"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "bob", "attributes": {} },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "attribute_equals_match",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "ATTRIBUTE", "attribute": "plan", "operator": "EQUALS", "values": ["gold"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": { "plan": "gold" } },
+      "expectedVariantKey": "on"
+    },
+    {
+      "name": "attribute_equals_no_match",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "ATTRIBUTE", "attribute": "plan", "operator": "EQUALS", "values": ["gold"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": { "plan": "silver" } },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "attribute_in_match",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "ATTRIBUTE", "attribute": "plan", "operator": "IN", "values": ["gold", "platinum"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": { "plan": "platinum" } },
+      "expectedVariantKey": "on"
+    },
+    {
+      "name": "attribute_in_no_match",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "ATTRIBUTE", "attribute": "plan", "operator": "IN", "values": ["gold", "platinum"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": { "plan": "bronze" } },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "missing_attribute_never_matches",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "ATTRIBUTE", "attribute": "plan", "operator": "EQUALS", "values": ["gold"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": {} },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "missing_user_key_prevents_rollout",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [],
+        "rollout": { "allocations": [ { "variantId": "v-on", "percentage": 10000 } ] }
+      },
+      "context": { "userKey": null, "attributes": {} },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "multiple_conditions_and_both_match",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [
+            { "type": "ATTRIBUTE", "attribute": "plan", "operator": "EQUALS", "values": ["gold"] },
+            { "type": "USER_KEY", "attribute": null, "operator": "EQUALS", "values": ["alice"] }
+          ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": { "plan": "gold" } },
+      "expectedVariantKey": "on"
+    },
+    {
+      "name": "multiple_conditions_and_partial_match_fails",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [
+            { "type": "ATTRIBUTE", "attribute": "plan", "operator": "EQUALS", "values": ["gold"] },
+            { "type": "USER_KEY", "attribute": null, "operator": "EQUALS", "values": ["alice"] }
+          ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": { "plan": "silver" } },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "multiple_rules_priority_lower_number_wins",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r-high", "priority": 1, "variantId": "v-off", "conditions": [ { "type": "USER_KEY", "attribute": null, "operator": "EQUALS", "values": ["alice"] } ] },
+          { "id": "r-low", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "USER_KEY", "attribute": null, "operator": "EQUALS", "values": ["alice"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": {} },
+      "expectedVariantKey": "on"
+    },
+    {
+      "name": "segment_match",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [
+        { "id": "seg-1", "key": "beta", "conditions": [ { "type": "USER_KEY", "attribute": null, "operator": "IN", "values": ["alice", "bob"] } ] }
+      ],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "SEGMENT_MATCH", "attribute": null, "operator": "EQUALS", "values": ["seg-1"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": {} },
+      "expectedVariantKey": "on"
+    },
+    {
+      "name": "segment_no_match",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [
+        { "id": "seg-1", "key": "beta", "conditions": [ { "type": "USER_KEY", "attribute": null, "operator": "IN", "values": ["alice", "bob"] } ] }
+      ],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "SEGMENT_MATCH", "attribute": null, "operator": "EQUALS", "values": ["seg-1"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "carol", "attributes": {} },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "missing_segment_fails_closed",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "SEGMENT_MATCH", "attribute": null, "operator": "EQUALS", "values": ["seg-missing"] } ] }
+        ],
+        "rollout": null
+      },
+      "context": { "userKey": "alice", "attributes": {} },
+      "expectedVariantKey": "off"
+    },
+    {
+      "name": "targeting_match_precedence_over_rollout",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true }, { "id": "v-alt", "key": "alt", "value": "alt" } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "USER_KEY", "attribute": null, "operator": "EQUALS", "values": ["alice"] } ] }
+        ],
+        "rollout": { "allocations": [ { "variantId": "v-alt", "percentage": 10000 } ] }
+      },
+      "context": { "userKey": "alice", "attributes": {} },
+      "expectedVariantKey": "on"
+    },
+    {
+      "name": "rollout_fallback_when_targeting_does_not_match",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-on", "key": "on", "value": true }, { "id": "v-alt", "key": "alt", "value": "alt" } ],
+        "targetingRules": [
+          { "id": "r1", "priority": 0, "variantId": "v-on", "conditions": [ { "type": "USER_KEY", "attribute": null, "operator": "EQUALS", "values": ["alice"] } ] }
+        ],
+        "rollout": { "allocations": [ { "variantId": "v-alt", "percentage": 10000 } ] }
+      },
+      "context": { "userKey": "bob", "attributes": {} },
+      "expectedVariantKey": "alt"
+    },
+    {
+      "name": "deterministic_rollout_known_bucket",
+      "environmentId": "env-1",
+      "flagKey": "checkout",
+      "segments": [],
+      "flag": {
+        "enabled": true,
+        "defaultVariant": { "id": "v-off", "key": "off", "value": false },
+        "variants": [ { "id": "v-off", "key": "off", "value": false }, { "id": "v-a", "key": "a", "value": "a" }, { "id": "v-b", "key": "b", "value": "b" } ],
+        "targetingRules": [],
+        "rollout": { "allocations": [ { "variantId": "v-a", "percentage": 4000 }, { "variantId": "v-b", "percentage": 6000 } ] }
+      },
+      "context": { "userKey": "user-1", "attributes": {} },
+      "expectedVariantKey": "b"
+    }
+  ]
+}

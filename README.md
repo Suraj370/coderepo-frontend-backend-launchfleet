@@ -1,19 +1,78 @@
-# Build Your Own LaunchDarkly
+# LaunchFleet
 
-Build a full-stack React + Spring Boot (Java) LaunchDarkly-inspired feature flag app with five to ten end-to-end features for creating, targeting, rolling out, and measuring feature flags, backed by MongoDB and a polished, accessible UI. The app must preserve the sample calendar repo's stack, install/build/start cleanly, and satisfy the acceptance criteria and verifier.
+LaunchFleet is a LaunchDarkly-inspired feature management product for creating flags, configuring environments, targeting audiences, managing progressive rollouts, approving changes, and measuring experiments.
 
-The app will be built in this repository, following the guidelines given. Start by reading the files in the order below.
+## Technology stack
 
-## Read in this order
+- React 19 + TypeScript, TanStack Router, TanStack Query, Vite, Tailwind CSS
+- Spring Boot 4 + Java 21 + Gradle
+- MongoDB with Spring Data MongoDB
+- Cookie-backed Spring Security sessions with CSRF protection
+- Bun 1.4+ for the JavaScript workspace
 
-1. **[REQUIREMENTS.md](REQUIREMENTS.md)** says what to build. The feature list, the acceptance criteria, and the submission checklist.
-2. **[INSTRUCTIONS.md](INSTRUCTIONS.md)** says how to start and how to keep the repo clean. It identifies the Spring Boot calendar repo to clone and study, along with the server setup rules, dependency rules, and code hygiene.
-3. **[AGENTS.md](AGENTS.md)** turns on transcript logging for this app repository. Read it before you open an AI assistant; it records every turn to a log file that you later export under `/transcripts`.
-4. **[GUIDELINES.md](GUIDELINES.md)** is the acceptance contract. Every rule the verifier checks is written here.
-5. **[skills/validate/SKILL.md](skills/validate/SKILL.md)** is the verifier. Run it when you are done. It audits structure, stack, dependencies, install, build, start, API behavior, and MongoDB persistence, and it must pass before you submit.
+## Product capabilities
 
-## Sample repo
+1. Feature flag management: create, edit, configure, toggle, and retire boolean or multivariate flags.
+2. Environment configuration: manage development, staging, and production environments independently.
+3. Segment and user targeting: define attribute-based segments and targeting rules.
+4. Progressive rollouts: configure percentage allocations per environment.
+5. Approval workflows: submit, approve, reject, schedule, and cancel flag changes.
+6. Experimentation: start experiments, assign users, record conversion events, and compare metrics.
+7. Change history: inspect activity records for flag, environment, approval, and experiment changes.
+8. Workspace administration: manage projects, members, profile settings, and SDK API keys.
 
-| Stack | Repo |
-|---|---|
-| React + Spring Boot | https://github.com/ProblemSetters/coderepo-react-springboot-calendar |
+## Project structure
+
+```text
+frontend/src/features/       Feature API clients, hooks, and types
+frontend/src/pages/          Product screens and forms
+frontend/src/routes/         TanStack Router route tree
+backend/src/main/java/...    Feature-oriented Spring controllers and services
+backend/src/main/resources/  Environment-driven application configuration
+backend/src/test/             Domain, application, security, and API tests
+setup.sh                      Dependency, MongoDB, environment, and seed setup
+run.sh                        Seeded backend/frontend start orchestration
+hackerrank.yml                Authoritative install/run commands
+```
+
+## Prerequisites
+
+- Bun 1.4 or newer
+- Java 21 or newer
+- MongoDB running as a single-node replica set at `localhost:27018`
+- `mongosh` available on `PATH`
+
+Set `MONGODB_URI` to use another MongoDB instance. The backend runs on port `8000`; the Vite frontend runs on port `3000` and proxies `/api` to the backend.
+
+## Install and run
+
+```bash
+bun install
+bash setup.sh --seed
+bash run.sh
+```
+
+The full run flow resets application collections to the deterministic demo baseline before starting both servers. Health is available at `http://localhost:8000/actuator/health` and includes MongoDB connectivity details.
+
+## Seeded access
+
+Sign in at `http://localhost:3000/login` with:
+
+- Email: `admin@launchfleet.dev`
+- Password: `launchfleet-demo`
+- Project: `default`
+
+The seeded user is an administrator for the default project. Seeding clears application collections before recreating the user, project, memberships, environments, and SDK credentials.
+
+## Useful commands
+
+```bash
+bun run build                         # Frontend production build
+backend/gradlew -p backend build      # Backend compile and tests
+backend/gradlew -p backend seed       # Explicit local seed reset
+curl http://localhost:8000/actuator/health
+```
+
+## Validation and submission
+
+The repository contract is defined by `GUIDELINES.md` and `REQUIREMENTS.md`. The validation procedure is in `skills/validate/SKILL.md`. Before handover, run the exact commands in `hackerrank.yml`, verify live API and MongoDB persistence, copy the external transcript log into `transcripts/`, and create the HackerRank archive from the clean tracked tree.

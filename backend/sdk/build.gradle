@@ -1,0 +1,52 @@
+plugins {
+	id 'java-library'
+}
+
+group = 'com.launchfleet'
+version = '0.1.0'
+
+// A distributable client-side artifact: no Spring/Spring Boot/Spring Security/MongoDB
+// dependency anywhere in this module, on purpose - a customer application must be able
+// to depend on this jar without pulling in a server framework.
+base {
+	archivesName = 'launchfleet-sdk'
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+	withSourcesJar()
+}
+
+repositories {
+	mavenCentral()
+}
+
+// Same golden-vector fixtures the root backend module's tests read (see its build.gradle) -
+// one JSON file, two independent evaluators run against it, proving compatibility rather
+// than assuming it.
+sourceSets {
+	test {
+		resources {
+			srcDir '../shared-test-fixtures'
+		}
+	}
+}
+
+dependencies {
+	// The one dependency this module carries: JSON (de)serialization for the wire
+	// contract in transport/. java.net.http.HttpClient (JDK-native, Java 11+) covers
+	// transport itself with no added dependency. Records are supported by Jackson's
+	// reflection-based creator detection without any extra module.
+	api 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+
+	testImplementation platform('org.junit:junit-bom:5.11.3')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testImplementation 'org.assertj:assertj-core:3.26.3'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(Test) {
+	useJUnitPlatform()
+}

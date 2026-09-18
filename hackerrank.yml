@@ -1,0 +1,12 @@
+install: |
+  bun install
+  bash setup.sh --seed
+run: bash run.sh
+readonly_paths:
+  - backend/src/main/java/com/launchfleet/backend/seed
+  - backend/src/main/resources/application.yaml
+  - backend/src/main/resources/application-dev.yaml
+default_open_files:
+  - README.md
+  - frontend/src/pages/feature-flags/FeatureFlagsPage.tsx
+  - backend/src/main/java/com/launchfleet/backend/featureflags/adapters/web/FeatureFlagResource.java

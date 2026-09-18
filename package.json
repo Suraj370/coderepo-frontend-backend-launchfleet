@@ -1,0 +1,13 @@
+{
+  "name": "launchfleet",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "bun@1.4.2",
+  "workspaces": ["frontend"],
+  "scripts": {
+    "install:backend": "backend/gradlew -p backend dependencies",
+    "seed": "backend/gradlew -p backend seed",
+    "build": "cd frontend && bun run build && cd ../backend && ./gradlew build",
+    "start": "bash run.sh"
+  }
+}

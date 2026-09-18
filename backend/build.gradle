@@ -1,0 +1,85 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.1.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.launchfleet'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+// Golden-vector fixtures (backend/SDK evaluation compatibility, Phase 5) live once in
+// shared-test-fixtures/ and are read by both this module's tests and sdk's tests -
+// duplicating the JSON would let the two copies drift silently.
+sourceSets {
+	test {
+		resources {
+			srcDir 'shared-test-fixtures'
+		}
+	}
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	// spring-boot-starter-mongodb only wires the low-level MongoClient/MongoTemplate; Boot 4
+	// split Spring Data repository support (MongoRepository scanning) into this starter.
+	// Our User/ProjectMembership/SdkCredential repositories need it. Resolves to 4.1.1 GA.
+	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	// Backs dashboard HttpSession with MongoDB (survives restarts, works across instances)
+	// instead of Tomcat's in-memory session store. Only a 4.0.0-M2 milestone is published
+	// for the Spring Framework 7 / Boot 4 generation so far, but Boot's dependency management
+	// realigns all of its transitive deps (spring-session-core, spring-data-mongodb,
+	// spring-security-core) to the same GA versions already used elsewhere in this project.
+	implementation 'org.springframework.session:spring-session-data-mongodb:4.0.0-M2'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	// OpenAPI/Swagger documentation of the existing REST API - springdoc-openapi 3.x is the
+	// major line released to support Spring Boot 4 / Spring Framework 7 (springdoc 2.x only
+	// targets Boot 3). Pulls in Swagger UI (/swagger-ui.html) and the JSON spec (/v3/api-docs).
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
+	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-data-mongodb-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(Test) {
+	useJUnitPlatform()
+}
+
+// Two @SpringBootApplication classes live in this module (see SeedRunner's doc comment),
+// so the Boot Gradle plugin can't infer which one bootJar/bootRun should package by default.
+springBoot {
+	mainClass = 'com.launchfleet.backend.BackendApplication'
+}
+
+// `./gradlew bootRun` is the local dev entry point, so it defaults to the dev profile
+// (same reasoning as the `seed` task below) - this only affects this task, never
+// bootJar/the packaged artifact, so production deployments are unaffected. Override with
+// `./gradlew bootRun --args='--spring.profiles.active=someOtherProfile'` if ever needed.
+tasks.named('bootRun') {
+	environment 'SPRING_PROFILES_ACTIVE', 'dev'
+}
+
+tasks.register('seed', JavaExec) {
+	group = 'application'
+	description = 'Wipes and reseeds MongoDB with demo data (dashboard user, project membership, SDK credentials).'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.launchfleet.backend.seed.SeedRunner'
+	// SeedRunner refuses to run destructively unless BOTH are set; this task IS the
+	// intended dev entry point, so it opts in on the caller's behalf.
+	environment 'SPRING_PROFILES_ACTIVE', 'dev'
+	environment 'SEED_DATABASE', 'true'
+}

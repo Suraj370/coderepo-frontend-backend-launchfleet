@@ -1,0 +1,8 @@
+# Activated via SPRING_PROFILES_ACTIVE=dev (the same profile the `seed` Gradle task already
+# uses). Turns on Swagger UI and the OpenAPI JSON document for local development only - see
+# the base application.yaml for why they're off by default.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
